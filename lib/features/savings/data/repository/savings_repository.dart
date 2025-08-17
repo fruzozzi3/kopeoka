@@ -3,6 +3,7 @@
 import 'package:my_kopilka/core/db/app_database.dart';
 import 'package:my_kopilka/features/savings/models/goal.dart';
 import 'package:my_kopilka/features/savings/models/transaction.dart';
+import 'package:sqflite/sqflite.dart';
 
 class SavingsRepository {
   final AppDatabase _appDatabase = AppDatabase();
