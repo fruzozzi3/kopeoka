@@ -7,6 +7,7 @@ import 'package:my_kopilka/features/savings/viewmodels/savings_view_model.dart';
 import 'package:my_kopilka/theme/color.dart';
 import 'package:provider/provider.dart';
 import 'package:my_kopilka/features/savings/models/transaction_enums.dart';
+import 'package:my_kopilka/features/savings/models/goal.dart';
 
 class GoalDetailsScreen extends StatefulWidget {
   final int goalId;
@@ -104,14 +105,12 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
                           items: TransactionCategory.values.map((category) {
                             return DropdownMenuItem<TransactionCategory>(
                               value: category,
-                              child: Text(_getCategoryName(category)),
+                              child: Text(category.displayName),
                             );
                           }).toList(),
                           onChanged: (category) {
                             if (category != null) {
-                              setState(() {
-                                selectedCategory = category;
-                              });
+                              selectedCategory = category;
                             }
                           },
                           decoration: const InputDecoration(
@@ -130,7 +129,7 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
                         vm.addTransaction(
                           widget.goalId, 
                           isWithdrawal ? -amount : amount,
-                          type: isWithdrawal ? TransactionType.outcome : TransactionType.income,
+                          type: isWithdrawal ? TransactionType.expense : TransactionType.income,
                           category: selectedCategory,
                           notes: notesController.text.isNotEmpty ? notesController.text : null,
                         );
@@ -147,41 +146,6 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
         );
       },
     );
-  }
-
-  String _getCategoryName(TransactionCategory category) {
-    switch (category) {
-      case TransactionCategory.cash: return 'Наличные';
-      case TransactionCategory.card: return 'Карта';
-      case TransactionCategory.bankTransfer: return 'Банковский перевод';
-      case TransactionCategory.other: return 'Другое';
-    }
-  }
-
-  String _getGoalCategoryName(String category) {
-    switch (category) {
-      case 'travel': return 'Путешествия';
-      case 'electronics': return 'Техника';
-      case 'education': return 'Образование';
-      case 'home': return 'Дом';
-      case 'car': return 'Автомобиль';
-      case 'gift': return 'Подарки';
-      case 'emergency': return 'Аварийный фонд';
-      default: return 'Общие';
-    }
-  }
-
-  IconData _getGoalCategoryIcon(String category) {
-    switch (category) {
-      case 'travel': return Icons.flight;
-      case 'electronics': return Icons.phone_android;
-      case 'education': return Icons.school;
-      case 'home': return Icons.home;
-      case 'car': return Icons.directions_car;
-      case 'gift': return Icons.card_giftcard;
-      case 'emergency': return Icons.emergency;
-      default: return Icons.savings;
-    }
   }
 
   @override
@@ -448,6 +412,32 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
         ],
       ),
     );
+  }
+
+  String _getGoalCategoryName(String category) {
+    switch (category) {
+      case 'travel': return 'Путешествия';
+      case 'electronics': return 'Техника';
+      case 'education': return 'Образование';
+      case 'home': return 'Дом';
+      case 'car': return 'Автомобиль';
+      case 'gift': return 'Подарки';
+      case 'emergency': return 'Аварийный фонд';
+      default: return 'Общие';
+    }
+  }
+
+  IconData _getGoalCategoryIcon(String category) {
+    switch (category) {
+      case 'travel': return Icons.flight;
+      case 'electronics': return Icons.phone_android;
+      case 'education': return Icons.school;
+      case 'home': return Icons.home;
+      case 'car': return Icons.directions_car;
+      case 'gift': return Icons.card_giftcard;
+      case 'emergency': return Icons.emergency;
+      default: return Icons.savings;
+    }
   }
 
   Widget _buildActionButtons(BuildContext context, Goal goal, bool isDark, SavingsViewModel vm) {
