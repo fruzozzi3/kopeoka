@@ -1,263 +1,136 @@
 // lib/features/savings/viewmodels/savings_view_model.dart
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:my_kopilka/features/savings/data/repository/savings_repository.dart';
 import 'package:my_kopilka/features/savings/models/goal.dart';
 import 'package:my_kopilka/features/savings/models/transaction.dart';
 import 'package:my_kopilka/features/savings/models/transaction_enums.dart';
 
-class SavingsViewModel extends ChangeNotifier {
+class SavingsViewModel with ChangeNotifier {
   final SavingsRepository _repository;
-  SavingsViewModel(this._repository);
-
   List<Goal> _goals = [];
   List<Goal> get goals => _goals;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  SavingsViewModel(this._repository);
+
   Future<void> init() async {
-    await fetchGoals();
+    await loadGoals();
   }
 
-  Future<void> fetchGoals() async {
+  Future<void> loadGoals() async {
     _isLoading = true;
     notifyListeners();
-
-    try {
-      final fetchedGoals = await _repository.getAllGoals();
-      for (var goal in fetchedGoals) {
-        goal.currentAmount = await _repository.getCurrentSumForGoal(goal.id!);
-      }
-      _goals = fetchedGoals;
-    } catch (e) {
-      debugPrint('Error fetching goals: $e');
-    }
-
+    _goals = await _repository.getGoals();
+    _goals.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     _isLoading = false;
     notifyListeners();
   }
 
   Future<void> addGoal({
     required String name,
-    String? description,
     required int targetAmount,
     DateTime? targetDate,
-    String category = 'general',
+    required String category,
+    String? description,
   }) async {
     final newGoal = Goal(
       name: name,
-      description: description ?? '',
       targetAmount: targetAmount,
+      createdAt: DateTime.now(),
       targetDate: targetDate,
       category: category,
-      createdAt: DateTime.now(),
+      description: description,
+      currentAmount: 0,
     );
-
-    try {
-      await _repository.addGoal(newGoal);
-      await fetchGoals();
-    } catch (e) {
-      debugPrint('Error adding goal: $e');
-    }
-  }
-
-  Future<void> updateGoal(Goal goal) async {
-    try {
-      await _repository.updateGoal(goal);
-      await fetchGoals();
-    } catch (e) {
-      debugPrint('Error updating goal: $e');
-    }
+    await _repository.insertGoal(newGoal);
+    await loadGoals();
   }
 
   Future<void> deleteGoal(int goalId) async {
-    try {
-      await _repository.deleteGoal(goalId);
-      await fetchGoals();
-    } catch (e) {
-      debugPrint('Error deleting goal: $e');
-    }
+    await _repository.deleteGoal(goalId);
+    await loadGoals();
   }
 
-  Future<void> archiveGoal(int goalId, bool isArchived) async {
-    try {
-      final goal = _goals.firstWhere((g) => g.id == goalId);
-      final updatedGoal = goal.copyWith(isArchived: isArchived);
-      await _repository.updateGoal(updatedGoal);
-      await fetchGoals();
-    } catch (e) {
-      debugPrint('Error archiving goal: $e');
-    }
+  Future<void> updateGoal(Goal goal) async {
+    await _repository.updateGoal(goal);
+    await loadGoals();
   }
 
   Future<void> addTransaction(
     int goalId,
     int amount, {
-    String? notes,
     required TransactionType type,
-    TransactionCategory category = TransactionCategory.cash,
+    required TransactionCategory category,
+    String? notes,
   }) async {
     final transaction = Transaction(
       goalId: goalId,
       amount: amount,
       notes: notes,
+      createdAt: DateTime.now(),
       type: type,
       category: category,
-      createdAt: DateTime.now(),
     );
+    await _repository.insertTransaction(transaction);
+    await loadGoals(); // Перезагружаем цели, чтобы обновить текущую сумму
+  }
 
+  Future<void> deleteTransaction(int transactionId, int goalId) async {
+    await _repository.deleteTransaction(transactionId);
+    await loadGoals();
+  }
+
+  Future<List<Transaction>> getTransactionsForGoal(int goalId) async {
+    return await _repository.getTransactionsForGoal(goalId);
+  }
+
+  Goal? getGoalById(int goalId) {
     try {
-      await _repository.addTransaction(transaction);
-      await fetchGoals(); // Обновляем цели, чтобы пересчитать суммы
+      return _goals.firstWhere((goal) => goal.id == goalId);
     } catch (e) {
-      debugPrint('Error adding transaction: $e');
+      return null;
     }
   }
 
-  Future<List<Transaction>> getTransactionsForGoal(int goalId) {
-    return _repository.getTransactionsForGoal(goalId);
-  }
-
-  Future<List<Transaction>> getAllTransactions({
-    DateTime? startDate,
-    DateTime? endDate,
-  }) {
-    return _repository.getAllTransactions(
-      startDate: startDate,
-      endDate: endDate,
-    );
-  }
-
-  // Быстрое добавление денег в активную цель
-  Future<void> quickAdd(int amount) async {
-    final activeGoals = _goals.where((g) => !g.isCompleted && !g.isArchived).toList();
-
-    if (activeGoals.isEmpty) return;
-
-    // Если активная цель одна, добавляем в нее
-    if (activeGoals.length == 1) {
-      await addTransaction(
-        activeGoals.first.id!,
-        amount,
-        notes: 'Быстрое пополнение',
-        type: TransactionType.income,
-      );
-      return;
-    }
-
-    // Если целей несколько, добавляем в ту, которая ближе к завершению
-    activeGoals.sort((a, b) => b.progress.compareTo(a.progress));
-    await addTransaction(
-      activeGoals.first.id!,
-      amount,
-      notes: 'Быстрое пополнение',
-      type: TransactionType.income,
-    );
-  }
-
-  // Анализ накоплений
-  Map<String, dynamic> getAnalytics() {
-    final totalSaved = _goals.fold(0, (sum, goal) => sum + goal.currentAmount);
-    final totalTarget = _goals.fold(0, (sum, goal) => sum + goal.targetAmount);
-    final completedGoals = _goals.where((g) => g.isCompleted).length;
-    final averageProgress = _goals.isNotEmpty
-        ? _goals.fold(0.0, (sum, goal) => sum + goal.progress) / _goals.length
-        : 0.0;
-
-    return {
-      'totalSaved': totalSaved,
-      'totalTarget': totalTarget,
-      'completedGoals': completedGoals,
-      'totalGoals': _goals.length,
-      'averageProgress': averageProgress,
-      'remainingToTarget': totalTarget - totalSaved,
-    };
-  }
-
-  // Получить цели по категориям
-  Map<String, List<Goal>> getGoalsByCategory() {
-    final Map<String, List<Goal>> result = {};
-
+  Map<String, dynamic> getGoalsByCategory() {
+    final categoryStats = <String, Map<String, dynamic>>{};
     for (final goal in _goals) {
-      if (!result.containsKey(goal.category)) {
-        result[goal.category] = [];
+      if (!categoryStats.containsKey(goal.category)) {
+        categoryStats[goal.category] = {
+          'count': 0,
+          'saved': 0,
+          'target': 0,
+          'name': _getCategoryName(goal.category),
+        };
       }
-      result[goal.category]!.add(goal);
+      categoryStats[goal.category]!['count']++;
+      categoryStats[goal.category]!['saved'] += goal.currentAmount;
+      categoryStats[goal.category]!['target'] += goal.targetAmount;
     }
-
-    return result;
+    return categoryStats;
   }
+}
 
-  // Получить рекомендации
-  List<String> getRecommendations() {
-    final recommendations = <String>[];
-    final analytics = getAnalytics();
-
-    if (analytics['totalGoals'] == 0) {
-      recommendations.add('Создайте свою первую цель накопления');
-      return recommendations;
-    }
-
-    if (analytics['averageProgress'] < 0.2) {
-      recommendations.add('Попробуйте откладывать небольшие суммы регулярно');
-      recommendations.add('Собирайте мелочь - она быстро накапливается');
-    }
-
-    if (analytics['completedGoals'] == 0 && analytics['totalGoals'] > 0) {
-      recommendations.add('Сосредоточьтесь на одной цели для быстрого результата');
-    }
-
-    final urgentGoals = _goals.where((g) =>
-      g.targetDate != null &&
-      g.daysUntilTarget != null &&
-      g.daysUntilTarget! <= 30 &&
-      !g.isCompleted
-    ).toList();
-
-    if (urgentGoals.isNotEmpty) {
-      recommendations.add('У вас есть цели с приближающимся дедлайном');
-    }
-
-    if (recommendations.isEmpty) {
-      recommendations.add('Отлично! Продолжайте в том же духе');
-      recommendations.add('Рассмотрите возможность создания новых целей');
-    }
-
-    return recommendations;
-  }
-
-  // Поиск целей
-  List<Goal> searchGoals(String query) {
-    if (query.isEmpty) return _goals;
-
-    final lowercaseQuery = query.toLowerCase();
-    return _goals.where((goal) {
-      return goal.name.toLowerCase().contains(lowercaseQuery) ||
-             (goal.description.toLowerCase().contains(lowercaseQuery)) ||
-             goal.category.toLowerCase().contains(lowercaseQuery);
-    }).toList();
-  }
-
-  // Получить самую активную цель (с наибольшим количеством транзакций за последнее время)
-  Future<Goal?> getMostActiveGoal() async {
-    if (_goals.isEmpty) return null;
-
-    final Map<int, int> transactionCounts = {};
-    final oneWeekAgo = DateTime.now().subtract(const Duration(days: 7));
-
-    for (final goal in _goals) {
-      final transactions = await getTransactionsForGoal(goal.id!);
-      final recentTransactions = transactions.where((t) => t.createdAt.isAfter(oneWeekAgo));
-      transactionCounts[goal.id!] = recentTransactions.length;
-    }
-
-    if (transactionCounts.isEmpty) return null;
-
-    final mostActiveGoalId = transactionCounts.entries
-        .reduce((a, b) => a.value > b.value ? a : b)
-        .key;
-
-    return _goals.firstWhere((g) => g.id == mostActiveGoalId);
+String _getCategoryName(String category) {
+  switch (category) {
+    case 'travel':
+      return 'Путешествия';
+    case 'electronics':
+      return 'Техника';
+    case 'education':
+      return 'Образование';
+    case 'home':
+      return 'Дом';
+    case 'car':
+      return 'Автомобиль';
+    case 'gift':
+      return 'Подарки';
+    case 'emergency':
+      return 'Аварийный фонд';
+    default:
+      return 'Общие';
   }
 }
