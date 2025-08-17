@@ -47,13 +47,13 @@ class SavingsViewModel extends ChangeNotifier {
   }) async {
     final newGoal = Goal(
       name: name,
-      description: description,
+      description: description ?? '',
       targetAmount: targetAmount,
       targetDate: targetDate,
       category: category,
       createdAt: DateTime.now(),
     );
-    
+
     try {
       await _repository.addGoal(newGoal);
       await fetchGoals();
@@ -92,10 +92,10 @@ class SavingsViewModel extends ChangeNotifier {
   }
 
   Future<void> addTransaction(
-    int goalId, 
+    int goalId,
     int amount, {
     String? notes,
-    TransactionType? type,
+    required TransactionType type,
     TransactionCategory category = TransactionCategory.cash,
   }) async {
     final transaction = Transaction(
@@ -106,7 +106,7 @@ class SavingsViewModel extends ChangeNotifier {
       category: category,
       createdAt: DateTime.now(),
     );
-    
+
     try {
       await _repository.addTransaction(transaction);
       await fetchGoals(); // Обновляем цели, чтобы пересчитать суммы
@@ -132,25 +132,27 @@ class SavingsViewModel extends ChangeNotifier {
   // Быстрое добавление денег в активную цель
   Future<void> quickAdd(int amount) async {
     final activeGoals = _goals.where((g) => !g.isCompleted && !g.isArchived).toList();
-    
+
     if (activeGoals.isEmpty) return;
-    
+
     // Если активная цель одна, добавляем в нее
     if (activeGoals.length == 1) {
       await addTransaction(
         activeGoals.first.id!,
         amount,
         notes: 'Быстрое пополнение',
+        type: TransactionType.income,
       );
       return;
     }
-    
+
     // Если целей несколько, добавляем в ту, которая ближе к завершению
     activeGoals.sort((a, b) => b.progress.compareTo(a.progress));
     await addTransaction(
       activeGoals.first.id!,
       amount,
       notes: 'Быстрое пополнение',
+      type: TransactionType.income,
     );
   }
 
@@ -159,7 +161,7 @@ class SavingsViewModel extends ChangeNotifier {
     final totalSaved = _goals.fold(0, (sum, goal) => sum + goal.currentAmount);
     final totalTarget = _goals.fold(0, (sum, goal) => sum + goal.targetAmount);
     final completedGoals = _goals.where((g) => g.isCompleted).length;
-    final averageProgress = _goals.isNotEmpty 
+    final averageProgress = _goals.isNotEmpty
         ? _goals.fold(0.0, (sum, goal) => sum + goal.progress) / _goals.length
         : 0.0;
 
@@ -176,14 +178,14 @@ class SavingsViewModel extends ChangeNotifier {
   // Получить цели по категориям
   Map<String, List<Goal>> getGoalsByCategory() {
     final Map<String, List<Goal>> result = {};
-    
+
     for (final goal in _goals) {
       if (!result.containsKey(goal.category)) {
         result[goal.category] = [];
       }
       result[goal.category]!.add(goal);
     }
-    
+
     return result;
   }
 
@@ -191,48 +193,48 @@ class SavingsViewModel extends ChangeNotifier {
   List<String> getRecommendations() {
     final recommendations = <String>[];
     final analytics = getAnalytics();
-    
+
     if (analytics['totalGoals'] == 0) {
       recommendations.add('Создайте свою первую цель накопления');
       return recommendations;
     }
-    
+
     if (analytics['averageProgress'] < 0.2) {
       recommendations.add('Попробуйте откладывать небольшие суммы регулярно');
       recommendations.add('Собирайте мелочь - она быстро накапливается');
     }
-    
+
     if (analytics['completedGoals'] == 0 && analytics['totalGoals'] > 0) {
       recommendations.add('Сосредоточьтесь на одной цели для быстрого результата');
     }
-    
-    final urgentGoals = _goals.where((g) => 
-      g.targetDate != null && 
-      g.daysUntilTarget != null && 
-      g.daysUntilTarget! <= 30 && 
+
+    final urgentGoals = _goals.where((g) =>
+      g.targetDate != null &&
+      g.daysUntilTarget != null &&
+      g.daysUntilTarget! <= 30 &&
       !g.isCompleted
     ).toList();
-    
+
     if (urgentGoals.isNotEmpty) {
       recommendations.add('У вас есть цели с приближающимся дедлайном');
     }
-    
+
     if (recommendations.isEmpty) {
       recommendations.add('Отлично! Продолжайте в том же духе');
       recommendations.add('Рассмотрите возможность создания новых целей');
     }
-    
+
     return recommendations;
   }
 
   // Поиск целей
   List<Goal> searchGoals(String query) {
     if (query.isEmpty) return _goals;
-    
+
     final lowercaseQuery = query.toLowerCase();
     return _goals.where((goal) {
       return goal.name.toLowerCase().contains(lowercaseQuery) ||
-             (goal.description?.toLowerCase().contains(lowercaseQuery) ?? false) ||
+             (goal.description.toLowerCase().contains(lowercaseQuery)) ||
              goal.category.toLowerCase().contains(lowercaseQuery);
     }).toList();
   }
@@ -240,22 +242,22 @@ class SavingsViewModel extends ChangeNotifier {
   // Получить самую активную цель (с наибольшим количеством транзакций за последнее время)
   Future<Goal?> getMostActiveGoal() async {
     if (_goals.isEmpty) return null;
-    
+
     final Map<int, int> transactionCounts = {};
     final oneWeekAgo = DateTime.now().subtract(const Duration(days: 7));
-    
+
     for (final goal in _goals) {
       final transactions = await getTransactionsForGoal(goal.id!);
       final recentTransactions = transactions.where((t) => t.createdAt.isAfter(oneWeekAgo));
       transactionCounts[goal.id!] = recentTransactions.length;
     }
-    
+
     if (transactionCounts.isEmpty) return null;
-    
+
     final mostActiveGoalId = transactionCounts.entries
         .reduce((a, b) => a.value > b.value ? a : b)
         .key;
-    
+
     return _goals.firstWhere((g) => g.id == mostActiveGoalId);
   }
 }
