@@ -351,6 +351,9 @@ class _BillButton extends StatelessWidget {
             autofocus: true,
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
+actions: [
+  TextButton(
+    onPressed: () => Navigator.pop(context),
+    child: const Text('Отмена'),
+  ),
+],
