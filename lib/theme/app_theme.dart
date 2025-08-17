@@ -20,7 +20,7 @@ class AppTheme {
         elevation: 0,
         centerTitle: true,
       ),
-      cardTheme: CardTheme.of(const CardTheme()).copyWith(
+      cardTheme: CardTheme( // FIX: Changed from CardTheme.of(const CardTheme()).copyWith
         color: kCardLight,
         elevation: 2,
         shadowColor: kSoftShadow[0].color,
@@ -70,7 +70,7 @@ class AppTheme {
         centerTitle: true,
         iconTheme: IconThemeData(color: kTextPrimaryDark),
       ),
-      cardTheme: CardTheme.of(const CardTheme()).copyWith(
+      cardTheme: CardTheme( // FIX: Changed from CardTheme.of(const CardTheme()).copyWith
         color: kCardDark,
         elevation: 4,
         shadowColor: kSoftShadow[0].color,
