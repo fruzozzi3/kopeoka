@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:my_kopilka/features/savings/viewmodels/savings_view_model.dart';
 import 'package:my_kopilka/theme/color.dart';
 import 'package:provider/provider.dart';
+import 'package:my_kopilka/features/savings/models/goal.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -22,13 +23,17 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyFormat = NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 0);
 
+    // Подсчет статистики
     final totalSaved = vm.goals.fold(0, (sum, goal) => sum + goal.currentAmount);
     final totalTarget = vm.goals.fold(0, (sum, goal) => sum + goal.targetAmount);
     final completedGoals = vm.goals.where((g) => g.isCompleted).length;
-    final activeGoals = vm.goals.where((g) => !g.isCompleted && !g.isArchived).length;
+    final activeGoals = vm.goals.where((g) => !g.isCompleted).length;
     final averageProgress = vm.goals.isNotEmpty 
         ? vm.goals.fold(0.0, (sum, goal) => sum + goal.progress) / vm.goals.length
         : 0.0;
+
+    // Анализ по категориям
+    final categoryStats = vm.getGoalsByCategory();
 
     return Scaffold(
       appBar: AppBar(
@@ -101,16 +106,17 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
-                    children: vm.getGoalsByCategory().map((category) {
-                      final totalSaved = category.goals.fold(0, (sum, goal) => sum + goal.currentAmount);
-                      final totalTarget = category.goals.fold(0, (sum, goal) => sum + goal.targetAmount);
-                      final progress = totalTarget > 0 ? totalSaved / totalTarget : 0.0;
+                    children: categoryStats.entries.map((entry) {
+                      final categoryName = entry.value['name'] as String;
+                      final savedAmount = entry.value['saved'] as int;
+                      final targetAmount = entry.value['target'] as int;
+                      final progress = targetAmount > 0 ? savedAmount / targetAmount : 0.0;
                       return _buildCategoryProgressRow(
                         context,
-                        category.name,
+                        categoryName,
                         progress,
-                        currencyFormat.format(totalSaved),
-                        currencyFormat.format(totalTarget),
+                        currencyFormat.format(savedAmount),
+                        currencyFormat.format(targetAmount),
                       );
                     }).toList(),
                   ),
