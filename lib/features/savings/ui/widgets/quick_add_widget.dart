@@ -9,6 +9,21 @@ import 'package:my_kopilka/features/savings/models/transaction_enums.dart';
 class QuickAddWidget extends StatelessWidget {
   const QuickAddWidget({super.key});
 
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: () => _showQuickAddDialog(context),
+      icon: const Icon(Icons.add_circle_outline),
+      label: const Text('Пополнить'),
+      style: OutlinedButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+    );
+  }
+
   void _showQuickAddDialog(BuildContext context) {
     final vm = context.read<SavingsViewModel>();
     
