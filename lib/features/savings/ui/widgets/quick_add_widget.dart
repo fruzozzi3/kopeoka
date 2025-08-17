@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:my_kopilka/features/savings/viewmodels/savings_view_model.dart';
 import 'package:my_kopilka/theme/color.dart';
 import 'package:provider/provider.dart';
+import 'package:my_kopilka/features/savings/models/transaction_enums.dart';
 
 class QuickAddWidget extends StatelessWidget {
   const QuickAddWidget({super.key});
