@@ -6,6 +6,7 @@ import 'package:my_kopilka/features/savings/models/transaction.dart' as model;
 import 'package:my_kopilka/features/savings/viewmodels/savings_view_model.dart';
 import 'package:my_kopilka/theme/color.dart';
 import 'package:provider/provider.dart';
+import 'package:my_kopilka/features/savings/models/transaction_enums.dart';
 
 class GoalDetailsScreen extends StatefulWidget {
   final int goalId;
